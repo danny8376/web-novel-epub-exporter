@@ -1,0 +1,17 @@
+{
+  "name": "gitbook-new-epub-exporter",
+  "version": "1.0.0",
+  "description": "gitbook(new) epub exporter",
+  "main": "gen.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "DannyAAM",
+  "license": "MIT",
+  "dependencies": {
+    "epub-maker2": "^2.2.24",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5",
+    "ws": "^6.1.0"
+  }
+}
