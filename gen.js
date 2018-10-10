@@ -4,6 +4,7 @@ const EventEmitter = require('events').EventEmitter;
 const epubmaker2 = require('epub-maker2');
 const EpubMaker = epubmaker2.EpubMaker;
 const fs = require('fs');
+const child_process = require('child_process');
 
 class GitbookWS extends EventEmitter {
     constructor(ws_uri) {
@@ -187,7 +188,8 @@ class Gitbook extends EventEmitter {
          * {
          *   ignore: [<id or uri 1>, <id or uri 2>, ...],
          *   dest: "<dest folder>",
-         *   cache: "<cache folder>"
+         *   cache: "<cache folder>",
+         *   newEPUBHook: "<command line>"
          * }
          */
         this.options = options || {};
@@ -649,6 +651,9 @@ class Gitbook extends EventEmitter {
         var data = await this.epub.makeEpub();
         await this.writeFile(dest + "/" + this.epub.getFilename(true), data);
         console.log("epub file written"); // log info
+        if (this.options.newEPUBHook) {
+            child_process.exec(this.options.newEPUBHook);
+        }
     }
 
     writeFile(fn, data) {
