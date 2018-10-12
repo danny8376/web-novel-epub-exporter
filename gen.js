@@ -481,22 +481,25 @@ class Gitbook extends EventEmitter {
         }
     }
 
-    nodesToText(node) {
+    nodesToText(node, no_img) {
         var output = "";
         switch (node.kind) {
             case "document":
+            case "inline":
                 node.nodes.forEach((subnode) => {
-                    output += this.nodesToText(subnode);
+                    output += this.nodesToText(subnode, no_img);
                 });
                 break;
             case "block":
                 switch (node.type) {
                     case "image":
-                        output += "<img src=\"" + this.getAsset(node.data.assetID) + "\"/>";
+                        if (!no_img) {
+                            output += "<img src=\"" + this.getAsset(node.data.assetID) + "\"/>";
+                        }
                         break;
                     case "paragraph":
                         node.nodes.forEach((subnode) => {
-                            output += this.nodesToText(subnode);
+                            output += this.nodesToText(subnode, no_img);
                         });
                         break;
                     default:
@@ -504,7 +507,7 @@ class Gitbook extends EventEmitter {
                 break;
             case "text":
                 node.ranges.forEach((subnode) => {
-                    output += this.nodesToText(subnode);
+                    output += this.nodesToText(subnode, no_img);
                 });
                 break;
             case "range":
@@ -557,7 +560,7 @@ class Gitbook extends EventEmitter {
     }
 */
 
-    renderPages(pages, section, counter) {
+    renderPagesEPUB(pages, section, counter) {
         counter = counter || {
             vol: 0,
             ch: 0
@@ -565,7 +568,7 @@ class Gitbook extends EventEmitter {
         (pages || this.index).forEach((page) => {
             switch (page.type) {
                 case "page":
-                    console.log("rendering " + page.title); // log info
+                    console.log("EPUB rendering " + page.title); // log info
                     var text = page.doc ? this.transformText(this.nodesToText(page.doc)) : "";
                     if (section) {
                         counter.ch++;
@@ -603,7 +606,7 @@ class Gitbook extends EventEmitter {
                                         title: page.title
                                      });
                     */
-                    this.renderPages(page.children, subsection, counter);
+                    this.renderPagesEPUB(page.children, subsection, counter);
                     if (section) {
                         section.withSubSection(subsection);
                     } else {
@@ -615,10 +618,27 @@ class Gitbook extends EventEmitter {
         });
     }
 
-    renderAssets() {
+    renderAssetsEPUB() {
         for (var id in this.usedAssets) {
             var asset = this.usedAssets[id];
             this.epub.withAdditionalFile(asset.dlURL, null, asset.name);
+        }
+    }
+
+    writeFile(fn, data) {
+        return new Promise((resolve, reject) => {
+            fs.writeFile(fn, data, () => {
+                resolve();
+            })
+        });
+    }
+
+    async writeEPUB(dest) {
+        var data = await this.epub.makeEpub();
+        await this.writeFile(dest + "/" + this.epub.getFilename(true), data);
+        console.log("EPUB file written"); // log info
+        if (this.options.newEPUBHook) {
+            child_process.exec(this.options.newEPUBHook);
         }
     }
 
@@ -637,31 +657,44 @@ class Gitbook extends EventEmitter {
             this.epub.withCover(this.logoURL);
         }
 
-        console.log("downloading pages"); // log info
-        await this.retrieveDocs();
-
-        this.renderPages();
-        this.renderAssets();
+        this.renderPagesEPUB();
+        this.renderAssetsEPUB();
 
         console.log("downloading assets & generating EPUB"); // log info
         this.writeEPUB(dest || this.options.dest);
     }
 
-    async writeEPUB(dest) {
-        var data = await this.epub.makeEpub();
-        await this.writeFile(dest + "/" + this.epub.getFilename(true), data);
-        console.log("epub file written"); // log info
-        if (this.options.newEPUBHook) {
-            child_process.exec(this.options.newEPUBHook);
+    renderPagesTXT(pages) {
+        var output = "";
+        if (!pages) {
+            output = "==== " + this.name + " ====\r\n\r\n";
         }
+        (pages || this.index).forEach((page) => {
+            switch (page.type) {
+                case "page":
+                    console.log("TXT rendering " + page.title); // log info
+                    var text = page.doc ? (this.nodesToText(page.doc, true) + "\r\n\r\n") : "";
+                    output += "---- " + page.title + " ----\r\n\r\n" + text;
+                    break;
+                case "section":
+                    output += "==== " + page.title + " ====\r\n\r\n"
+                    output += this.renderPagesTXT(page.children);
+                    break;
+                default:
+            }
+        });
+        return output;
     }
 
-    writeFile(fn, data) {
-        return new Promise((resolve, reject) => {
-            fs.writeFile(fn, data, () => {
-                resolve();
-            })
-        });
+    async genTXT(dest) {
+        var data = this.renderPagesTXT();
+
+        console.log("generating TXT"); // log info
+        await this.writeFile((dest || this.options.dest) + "/" + this.name + ".txt", data);
+        console.log("TXT file written"); // log info
+        if (this.options.newTXTHook) {
+            child_process.exec(this.options.newTXTHook);
+        }
     }
 
     async test() {
@@ -669,9 +702,17 @@ class Gitbook extends EventEmitter {
         this.close();
     }
 
-    autoRegenEPUB() {
+    async gen(epub, txt) {
+        console.log("downloading pages"); // log info
+        await this.retrieveDocs();
+
+        if (epub) this.genEPUB();
+        if (txt) this.genTXT();
+    }
+
+    autoRegen(epub, txt) {
         this.addListener('bookRefresh', () => {
-            this.genEPUB();
+            this.genEPUB(epub, txt);
         });
     }
 }
@@ -683,7 +724,7 @@ async function main() {
     var config = JSON.parse(fs.readFileSync(process.argv[2]));
     var gitbook = new Gitbook(config.book_uri, config.options);
     await gitbook.ready();
-    gitbook.genEPUB();
-    gitbook.autoRegenEPUB();
+    gitbook.gen(true, true);
+    gitbook.autoRegen(true, true);
 }
 main();
