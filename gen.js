@@ -1,4 +1,5 @@
-const request = require('request-promise-native');
+//const requestp = require('request-promise-native');
+const request = require('request');
 const WS = require('ws');
 const EventEmitter = require('events').EventEmitter;
 const epubmaker2 = require('epub-maker2');
@@ -227,6 +228,29 @@ class Gitbook extends EventEmitter {
         this.ws.close();
     }
 
+    request(options, cnt, resolve, reject) {
+        if (typeof cnt === "number") {
+            request(options, (err, res, data) => {
+                if (err) {
+                    if (cnt > 6) { // wait cnt 0~6 => total about 2.1 minutes max
+                        reject(err);
+                    } else {
+                        var wait = 1000 * Math.pow(2, cnt++);
+                        setTimeout(() => {
+                            this.request(options, cnt, resolve, reject);
+                        }, wait);
+                    }
+                } else {
+                    resolve(data);
+                }
+            });
+        } else {
+            return new Promise((resolve, reject) => {
+                this.request(options, 0, resolve, reject);
+            });
+        }
+    }
+
     async init() {
         await this.retrieveConfig();
         await this.retrieveMeta();
@@ -239,7 +263,7 @@ class Gitbook extends EventEmitter {
 
     async retrieveConfig() {
         return new Promise(async (resolve, reject) => {
-            var book_html = await request(this.book_uri);
+            var book_html = await this.request(this.book_uri);
             var match = /\s*window\.GITBOOK_STATE\s*=\s*(.*)/.exec(book_html);
             var meta_str = match[1].endsWith(";") ? match[1].slice(0, -1) : match[1];
             var meta = JSON.parse(meta_str);
@@ -464,10 +488,9 @@ class Gitbook extends EventEmitter {
                     promises.push(new Promise(async (resolve, reject) => {
                         var node = pages.pop();
                         if (node.docURL) {
-                            var doc_str = await request(node.docURL);
+                            var doc_str = await this.request(node.docURL);
                             console.log(node.title + " downloaded"); // log info
                             node.doc = JSON.parse(doc_str).document;
-                            resolve();
                         }
                         resolve();
                     }));
@@ -697,11 +720,6 @@ class Gitbook extends EventEmitter {
         }
     }
 
-    async test() {
-        this.printIndex();
-        this.close();
-    }
-
     async gen(epub, txt) {
         console.log("downloading pages"); // log info
         await this.retrieveDocs();
@@ -714,6 +732,11 @@ class Gitbook extends EventEmitter {
         this.addListener('bookRefresh', () => {
             this.genEPUB(epub, txt);
         });
+    }
+
+    async test() {
+        this.printIndex();
+        this.close();
     }
 }
 
