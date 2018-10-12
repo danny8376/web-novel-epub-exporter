@@ -690,7 +690,7 @@ class Gitbook extends EventEmitter {
         var data = this.renderPagesTXT();
 
         console.log("generating TXT"); // log info
-        await this.writeFile((dest || this.options.dest) + "/" + this.name + ".txt", data);
+        await this.writeFile((dest || this.options.dest) + "/" + this.name + ".txt", "\ufeff" + data);
         console.log("TXT file written"); // log info
         if (this.options.newTXTHook) {
             child_process.exec(this.options.newTXTHook);
