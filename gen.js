@@ -1,11 +1,13 @@
+const Config = require('./lib/config');
 const Gitbook = require('./lib/gitbook');
-const fs = require('fs');
 
-async function main() {
-    var config = JSON.parse(fs.readFileSync(process.argv[2]));
-    var gitbook = new Gitbook(config.book_uri, config.options);
-    await gitbook.ready();
-    gitbook.gen(true, true, true);
-    gitbook.autoRegen(true, true, true);
+function main() {
+    const configs = Config.parse(process.argv[2]);
+    configs.forEach(async (config) => {
+        const gitbook = new Gitbook(config);
+        await gitbook.ready();
+        gitbook.gen(true, true, true);
+        gitbook.autoRegen(true, true, true);
+    });
 }
 main();
