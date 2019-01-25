@@ -1,7 +1,8 @@
 {
-  "name": "gitbook-new-epub-exporter",
+  "name": "web-novel-epub-exporter",
   "version": "1.0.0",
-  "description": "gitbook(new) epub exporter",
+  "description": "epub exporter mainly for web novels",
+  "repository": "github:danny8376/web-novel-epub-exporter",
   "main": "gen.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,7 +10,7 @@
   "author": "DannyAAM",
   "license": "MIT",
   "dependencies": {
-    "epub-maker2": "^2.2.24",
+    "epub-maker2": "^2.4.4",
     "request": "^2.88.0",
     "ws": "^6.1.0"
   }
