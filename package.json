@@ -11,6 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "epub-maker2": "^2.4.4",
+    "html-entities": "^1.2.1",
     "request": "^2.88.0",
     "ws": "^6.1.0"
   }
